@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>पटेल कृषि फार्म | डिजिटल बिलिंग</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        :root {
+            --primary: #1b5e20;
+            --secondary: #2e7d32;
+            --accent: #fbc02d;
+            --bg: #f8faf8;
+            --white: #ffffff;
+            --border: #c8e6c9;
+        }
+
+        * { box-sizing: border-box; font-family: 'Segoe UI', 'Arial', sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { margin: 0; background: var(--bg); color: #222; padding-bottom: 80px; }
+
+        .hidden { display: none !important; }
+        .card { background: var(--white); margin: 10px; padding: 15px; border-radius: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); border: 1px solid var(--border); }
+        
+        header { background: var(--primary); color: white; padding: 15px; text-align: center; border-radius: 0 0 20px 20px; position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+        header h1 { margin: 0; font-size: 1.4rem; letter-spacing: 1px; }
+
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px; }
+        .stat-box { background: var(--white); padding: 15px; border-radius: 12px; text-align: center; border-bottom: 4px solid var(--secondary); }
+        .stat-box h4 { margin: 0; font-size: 0.75rem; color: #666; }
+        .stat-box p { margin: 5px 0 0; font-size: 1.1rem; font-weight: bold; color: var(--primary); }
+
+        /* Bill Table */
+        .bill-table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 0.85rem; }
+        .bill-table th { background: #f2f2f2; border: 1px solid #999; padding: 6px; text-align: center; }
+        .bill-table td { border: 1px solid #999; padding: 4px; }
+
+        .input-flat { width: 100%; border: 1px solid #ddd; padding: 10px; font-size: 0.9rem; background: #fdfdfd; border-radius: 8px; margin-top: 5px; }
+        .input-flat:focus { outline: none; border-color: var(--secondary); }
+
+        .btn { padding: 12px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.9rem; width: 100%; margin-top: 10px; }
+        .btn-p { background: var(--primary); color: white; }
+        .btn-s { background: var(--accent); color: #1b5e20; }
+
+        nav { position: fixed; bottom: 0; width: 100%; background: white; display: flex; padding: 8px 0; border-top: 1px solid #eee; z-index: 1000; }
+        .nav-item { flex: 1; text-align: center; color: #888; font-size: 0.7rem; }
+        .nav-item.active { color: var(--primary); font-weight: bold; }
+        .nav-icon { font-size: 1.4rem; display: block; }
+
+        .qr-area { width: 100px; height: 100px; border: 1px dashed #ccc; display: flex; align-items: center; justify-content: center; }
+        .qr-area img { max-width: 100%; }
+
+        .req-card { border-left: 5px solid var(--accent); margin-bottom: 10px; padding: 10px; background: #fff; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+    </style>
+</head>
+<body>
+
+<header class="no-print">
+    <h1>पटेल कृषि फार्म</h1>
+</header>
+
+<!-- DASHBOARD (HOME) -->
+<section id="scr-home" class="screen no-print">
+    <div class="stats-grid">
+        <div class="stat-box"><h4>कुल जमा</h4><p>₹<span id="stat-paid">0</span></p></div>
+        <div class="stat-box"><h4>कुल बकाया</h4><p style="color:#d32f2f">₹<span id="stat-baki">0</span></p></div>
+    </div>
+
+    <div class="card">
+        <h3 style="margin:0 0 10px 0; font-size: 1rem;">📩 नई बुकिंग रिक्वेस्ट</h3>
+        <div id="request-container">
+            <p style="color:#888; text-align:center; padding: 20px;">कोई नई रिक्वेस्ट नहीं मिली।</p>
+        </div>
+    </div>
+</section>
+
+<!-- BILLING FORM -->
+<section id="scr-bill" class="screen hidden">
+    <div class="card">
+        <div id="bill-preview">
+            <div style="display:flex; justify-content:space-between; border-bottom:2px solid var(--primary); padding-bottom:10px;">
+                <div>
+                    <h2 style="margin:0; color:var(--primary);">Patel Krishi Farm</h2>
+                    <p style="margin:2px 0; font-size:0.7rem;">बालोद (छत्तीसगढ़)</p>
+                    <p style="margin:0; font-size:0.7rem;">दिनांक: <span id="bill-date-display"></span></p>
+                </div>
+                <div id="payment-qr-display" class="qr-area"><small>QR</small></div>
+            </div>
+
+            <input type="text" id="in-name" class="input-flat" placeholder="ग्राहक का नाम">
+            <input type="number" id="in-mob" class="input-flat" placeholder="मोबाइल नंबर">
+            <input type="text" id="in-addr" class="input-flat" placeholder="ग्राम/पता">
+
+            <table class="bill-table">
+                <thead><tr><th>मशीन</th><th>माप</th><th>दर</th><th>कुल</th></tr></thead>
+                <tbody>
+                    <tr>
+                        <td><select id="in-machine" class="input-flat" onchange="updateRate()" style="margin:0; padding:4px;"></select></td>
+                        <td><input type="number" id="in-qty" class="input-flat" placeholder="0" oninput="calc()" style="margin:0; padding:4px;"></td>
+                        <td><input type="number" id="in-rate" class="input-flat" placeholder="0" oninput="calc()" style="margin:0; padding:4px;"></td>
+                        <td><input type="number" id="in-total" class="input-flat" readonly style="margin:0; padding:4px; font-weight:bold;"></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div style="margin-left:auto; width: 150px; font-size: 0.9rem;">
+                <div style="display:flex; justify-content:space-between;"><span>कुल:</span><span id="txt-grand-total">₹0</span></div>
+                <div style="display:flex; justify-content:space-between; margin-top:5px;">
+                    <span>जमा:</span><input type="number" id="in-paid" value="0" oninput="calc()" style="width:60px; text-align:right;">
+                </div>
+                <div style="display:flex; justify-content:space-between; font-weight:bold; color:red; margin-top:5px; border-top:1px solid #ccc;">
+                    <span>शेष:</span><span>₹<span id="view-baki">0</span></span>
+                </div>
+            </div>
+        </div>
+        <button class="btn btn-p" onclick="saveBill()">💾 बिल सेव करें</button>
+        <button class="btn btn-s" onclick="shareWA()">📱 WhatsApp भेजें</button>
+    </div>
+</section>
+
+<!-- SETUP -->
+<section id="scr-setup" class="screen hidden no-print">
+    <div class="card">
+        <h3>⚙️ सेटअप</h3>
+        <label><b>अपना Payment QR अपलोड करें:</b></label>
+        <input type="file" accept="image/*" onchange="handleQRUpload(this)" class="input-flat">
+        
+        <div style="text-align:center; margin: 20px 0; padding: 10px; border: 1px solid #ddd; border-radius: 10px;">
+            <label><b>बुकिंग QR कोड (इसे ग्राहक को दिखाएं):</b></label>
+            <div id="request-qr-container" style="display:flex; justify-content:center; margin:10px;"></div>
+            <p style="font-size:0.7rem; color:#666;">इसे प्रिंट करके दुकान/फार्म में लगाएं।</p>
+        </div>
+
+        <h4>मशीन लिस्ट</h4>
+        <div id="machine-list-render"></div>
+        <div style="display:flex; gap:5px; margin-top:10px;">
+            <input type="text" id="new-mach-name" class="input-flat" placeholder="नाम">
+            <input type="number" id="new-mach-rate" class="input-flat" placeholder="दर">
+            <button class="btn btn-p" onclick="addMachine()" style="width:50px; margin:0;">+</button>
+        </div>
+    </div>
+</section>
+
+<!-- CUSTOMER REQUEST FORM (The one customer sees) -->
+<section id="scr-req-form" class="screen hidden">
+    <div class="card">
+        <h2 style="text-align:center; color:var(--primary);">पटेल कृषि फार्म</h2>
+        <p style="text-align:center; margin-bottom:20px;">ऑनलाइन बुकिंग फॉर्म</p>
+        
+        <label><b>आपका नाम:</b></label>
+        <input type="text" id="req-name" class="input-flat">
+        
+        <label><b>मोबाइल नंबर:</b></label>
+        <input type="number" id="req-mob" class="input-flat">
+        
+        <label><b>ग्राम / पता:</b></label>
+        <input type="text" id="req-addr" class="input-flat">
+        
+        <label><b>काम की जानकारी:</b></label>
+        <textarea id="req-work" class="input-flat" placeholder="उदा: 5 एकड़ धान कटाई" style="height:80px;"></textarea>
+
+        <label><b>किस तारीख को काम चाहिए:</b></label>
+        <input type="date" id="req-date" class="input-flat">
+        
+        <button class="btn btn-p" style="margin-top:20px;" onclick="sendRequest()">🚀 बुकिंग भेजें</button>
+    </div>
+</section>
+
+<nav class="no-print">
+    <div class="nav-item active" onclick="showScr('scr-home', this)"><span class="nav-icon">🏠</span>होम</div>
+    <div class="nav-item" onclick="showScr('scr-bill', this)"><span class="nav-icon">🧾</span>बिल</div>
+    <div class="nav-item" onclick="showScr('scr-setup', this)"><span class="nav-icon">⚙️</span>सेटअप</div>
+</nav>
+
+<script>
+    let db = {
+        bills: JSON.parse(localStorage.getItem('pkf_bills')) || [],
+        machines: JSON.parse(localStorage.getItem('pkf_machines')) || [
+            {name: 'हार्वेस्टर', rate: 2500},
+            {name: 'ट्रैक्टर', rate: 800}
+        ],
+        qrImage: localStorage.getItem('pkf_qr') || '',
+        ownerID: localStorage.getItem('pkf_id') || Math.floor(1000 + Math.random() * 9000)
+    };
+
+    if(!localStorage.getItem('pkf_id')) localStorage.setItem('pkf_id', db.ownerID);
+
+    function showScr(id, el) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+        document.getElementById(id).classList.remove('hidden');
+        if(el) {
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            el.classList.add('active');
+        }
+        if(id === 'scr-setup') renderSetup();
+        if(id === 'scr-home') updateDash();
+        if(id === 'scr-bill') document.getElementById('bill-date-display').innerText = new Date().toLocaleDateString();
+    }
+
+    // Billing Logic
+    function updateRate() {
+        const m = db.machines.find(x => x.name === document.getElementById('in-machine').value);
+        if(m) document.getElementById('in-rate').value = m.rate;
+        calc();
+    }
+
+    function calc() {
+        const qty = parseFloat(document.getElementById('in-qty').value) || 0;
+        const rate = parseFloat(document.getElementById('in-rate').value) || 0;
+        const paid = parseFloat(document.getElementById('in-paid').value) || 0;
+        const total = qty * rate;
+        document.getElementById('in-total').value = total;
+        document.getElementById('txt-grand-total').innerText = "₹" + total;
+        document.getElementById('view-baki').innerText = total - paid;
+    }
+
+    // Customer Side: Send Request
+    async function sendRequest() {
+        const n = document.getElementById('req-name').value;
+        const m = document.getElementById('req-mob').value;
+        const a = document.getElementById('req-addr').value;
+        const w = document.getElementById('req-work').value;
+        const d = document.getElementById('req-date').value;
+        const owner = new URLSearchParams(window.location.search).get('owner');
+
+        if(!n || !m) { alert("नाम और मोबाइल जरूरी है"); return; }
+
+        const msg = `${n}|${m}|${a}|${w}|${d}`;
+        try {
+            await fetch(`https://ntfy.sh/pkf_req_${owner}`, { method: 'POST', body: msg });
+            alert("बुकिंग भेज दी गई है! हम आपसे संपर्क करेंगे।");
+            location.reload();
+        } catch(e) { alert("नेटवर्क एरर"); }
+    }
+
+    // Owner Side: Check Requests
+    async function checkRequests() {
+        try {
+            const res = await fetch(`https://ntfy.sh/pkf_req_${db.ownerID}/json?poll=1`);
+            const data = await res.text();
+            const lines = data.trim().split('\n');
+            const container = document.getElementById('request-container');
+            
+            if(lines.length > 0 && lines[0] !== "") {
+                container.innerHTML = "";
+                lines.forEach(line => {
+                    const json = JSON.parse(line);
+                    const [name, mob, addr, work, date] = json.message.split('|');
+                    container.innerHTML += `
+                        <div class="req-card">
+                            <strong>👤 ${name}</strong> <small>(${mob})</small><br>
+                            <small>📍 ${addr}</small><br>
+                            <p style="margin:5px 0; font-size:0.85rem;">🛠 ${work}</p>
+                            <small>📅 दिनांक: ${date}</small>
+                            <button class="btn btn-p" style="padding:5px; font-size:0.7rem;" onclick="fillBill('${name}','${mob}','${addr}')">बिल बनाएं</button>
+                        </div>
+                    `;
+                });
+            }
+        } catch(e) {}
+    }
+
+    function fillBill(n, m, a) {
+        document.getElementById('in-name').value = n;
+        document.getElementById('in-mob').value = m;
+        document.getElementById('in-addr').value = a;
+        showScr('scr-bill');
+    }
+
+    // QR & Setup
+    function handleQRUpload(input) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            db.qrImage = e.target.result;
+            localStorage.setItem('pkf_qr', db.qrImage);
+            loadPaymentQR();
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+
+    function loadPaymentQR() {
+        if(db.qrImage) document.getElementById('payment-qr-display').innerHTML = `<img src="${db.qrImage}">`;
+    }
+
+    function renderSetup() {
+        const list = document.getElementById('machine-list-render');
+        const sel = document.getElementById('in-machine');
+        list.innerHTML = "";
+        sel.innerHTML = '<option value="">चुनें</option>';
+        db.machines.forEach((m, i) => {
+            sel.innerHTML += `<option value="${m.name}">${m.name}</option>`;
+            list.innerHTML += `<div style="display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee;">
+                <span>${m.name} (₹${m.rate})</span>
+                <span style="color:red;" onclick="delMac(${i})">🗑️</span>
+            </div>`;
+        });
+
+        // Booking QR Generation
+        const currentUrl = window.location.href.split('?')[0];
+        const reqURL = `${currentUrl}?mode=request&owner=${db.ownerID}`;
+        document.getElementById('request-qr-container').innerHTML = "";
+        new QRCode(document.getElementById('request-qr-container'), { text: reqURL, width: 150, height: 150 });
+    }
+
+    function addMachine() {
+        const n = document.getElementById('new-mach-name').value;
+        const r = document.getElementById('new-mach-rate').value;
+        if(n && r) {
+            db.machines.push({name: n, rate: r});
+            localStorage.setItem('pkf_machines', JSON.stringify(db.machines));
+            renderSetup();
+        }
+    }
+
+    function delMac(i) {
+        db.machines.splice(i, 1);
+        localStorage.setItem('pkf_machines', JSON.stringify(db.machines));
+        renderSetup();
+    }
+
+    function saveBill() {
+        const bill = {
+            paid: document.getElementById('in-paid').value,
+            baki: document.getElementById('view-baki').innerText
+        };
+        db.bills.push(bill);
+        localStorage.setItem('pkf_bills', JSON.stringify(db.bills));
+        alert("बिल सेव हो गया!");
+        showScr('scr-home');
+    }
+
+    function shareWA() {
+        const n = document.getElementById('in-name').value;
+        const b = document.getElementById('view-baki').innerText;
+        const text = `*पटेल कृषि फार्म*%0Aग्राहक: ${n}%0Aबाकी राशि: ₹${b}%0Aधन्यवाद।`;
+        window.open(`https://wa.me/91${document.getElementById('in-mob').value}?text=${text}`);
+    }
+
+    function updateDash() {
+        const paid = db.bills.reduce((s, x) => s + Number(x.paid), 0);
+        const baki = db.bills.reduce((s, x) => s + Number(x.baki), 0);
+        document.getElementById('stat-paid').innerText = paid;
+        document.getElementById('stat-baki').innerText = baki;
+    }
+
+    // Initialize Mode
+    const urlParams = new URLSearchParams(window.location.search);
+    if(urlParams.get('mode') === 'request') {
+        document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+        document.querySelector('nav').style.display = 'none';
+        document.querySelector('header').style.display = 'none';
+        document.getElementById('scr-req-form').classList.remove('hidden');
+    } else {
+        loadPaymentQR();
+        updateDash();
+        setInterval(checkRequests, 5000);
+    }
+</script>
+
+</body>
+</html>
